@@ -3694,6 +3694,15 @@ static bool wpa_sm_pmksa_is_current_cb(struct rsn_pmksa_cache_entry *entry,
 }
 
 
+static void wpa_sm_pmksa_notify_cb(struct rsn_pmksa_cache_entry *entry,
+				   void *ctx)
+{
+	struct wpa_sm *sm = ctx;
+
+	wpa_sm_notify_pmksa_cache_entry(sm, entry);
+}
+
+
 /**
  * wpa_sm_init - Initialize WPA state machine
  * @ctx: Context pointer for callbacks; this needs to be an allocated buffer
@@ -3718,7 +3727,8 @@ struct wpa_sm * wpa_sm_init(struct wpa_sm_ctx *ctx)
 	sm->dot11RSNAConfigSATimeout = 60;
 
 	sm->pmksa = pmksa_cache_init(wpa_sm_pmksa_free_cb,
-				     wpa_sm_pmksa_is_current_cb, sm, sm);
+				     wpa_sm_pmksa_is_current_cb,
+				     wpa_sm_pmksa_notify_cb, sm, sm);
 	if (sm->pmksa == NULL) {
 		wpa_msg(sm->ctx->msg_ctx, MSG_ERROR,
 			"RSN: PMKSA cache initialization failed");
@@ -4777,7 +4787,7 @@ void wpa_sm_external_pmksa_cache_flush(struct wpa_sm *sm, void *network_ctx)
 	pmksa_cache_flush(sm->pmksa, network_ctx, NULL, 0, true);
 }
 
-#ifdef CONFIG_DRIVER_NL80211_BRCM
+#if defined(CONFIG_DRIVER_NL80211_BRCM) || defined(CONFIG_DRIVER_NL80211_SYNA)
 void wpa_sm_install_pmk(struct wpa_sm *sm)
 {
 	/* In case the driver wants to handle re-assocs, pass it down the PMK. */
@@ -4816,7 +4826,8 @@ void wpa_sm_notify_brcm_ft_reassoc(struct wpa_sm *sm, const u8 *bssid)
 			"WPA: Updated KCK and KEK after FT reassoc");
 	}
 }
-#endif /* CONFIG_DRIVER_NL80211_BRCM */
+#endif /* CONFIG_DRIVER_NL80211_BRCM || CONFIG_DRIVER_NL80211_SYNA */
+
 
 #ifdef CONFIG_WNM
 int wpa_wnmsleep_install_key(struct wpa_sm *sm, u8 subelem_id, u8 *buf)
@@ -6190,15 +6201,6 @@ void wpa_sm_set_dpp_z(struct wpa_sm *sm, const struct wpabuf *z)
 
 #ifdef CONFIG_PASN
 
-void wpa_pasn_pmksa_cache_add(struct wpa_sm *sm, const u8 *pmk, size_t pmk_len,
-			      const u8 *pmkid, const u8 *bssid, int key_mgmt)
-{
-	sm->cur_pmksa = pmksa_cache_add(sm->pmksa, pmk, pmk_len, pmkid, NULL, 0,
-					bssid, sm->own_addr, NULL,
-					key_mgmt, 0);
-}
-
-
 void wpa_pasn_sm_set_caps(struct wpa_sm *sm, unsigned int flags2)
 {
 	if (flags2 & WPA_DRIVER_FLAGS2_SEC_LTF_STA)
@@ -6216,4 +6218,18 @@ void wpa_sm_pmksa_cache_reconfig(struct wpa_sm *sm)
 {
 	if (sm)
 		pmksa_cache_reconfig(sm->pmksa);
+}
+
+
+struct rsn_pmksa_cache * wpa_sm_get_pmksa_cache(struct wpa_sm *sm)
+{
+	return sm ? sm->pmksa : NULL;
+}
+
+
+void wpa_sm_set_cur_pmksa(struct wpa_sm *sm,
+			  struct rsn_pmksa_cache_entry *entry)
+{
+	if (sm)
+		sm->cur_pmksa = entry;
 }

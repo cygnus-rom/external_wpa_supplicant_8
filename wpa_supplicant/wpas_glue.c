@@ -316,19 +316,19 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 		ieee802_1x_notify_create_actor(wpa_s, wpa_s->last_eapol_src);
 	}
 
-#ifdef CONFIG_DRIVER_NL80211_BRCM                                                            
+#if defined(CONFIG_DRIVER_NL80211_BRCM) || defined(CONFIG_DRIVER_NL80211_SYNA)
 	if (result != EAPOL_SUPP_RESULT_SUCCESS)                          
 #else                                                                     
 	if (result != EAPOL_SUPP_RESULT_SUCCESS ||                        
 		!(wpa_s->drv_flags & WPA_DRIVER_FLAGS_4WAY_HANDSHAKE_8021X))  
-#endif /* CONFIG_DRIVER_NL80211_BRCM */                                                      
+#endif /* CONFIG_DRIVER_NL80211_BRCM || CONFIG_DRIVER_NL80211_SYNA */
 		return;                                                   
 
-#ifdef CONFIG_DRIVER_NL80211_BRCM
+#if defined(CONFIG_DRIVER_NL80211_BRCM) || defined(CONFIG_DRIVER_NL80211_SYNA)
 	if (wpa_ft_is_ft_protocol(wpa_s->wpa)) {
 		return;
 	}
-#endif /* CONFIG_DRIVER_NL80211_BRCM */
+#endif /* CONFIG_DRIVER_NL80211_BRCM || CONFIG_DRIVER_NL80211_SYNA */
 
 	if (!wpa_key_mgmt_wpa_ieee8021x(wpa_s->key_mgmt))
 		return;
@@ -1408,7 +1408,7 @@ static void wpa_supplicant_store_ptk(void *ctx, u8 *addr, int cipher,
 	struct wpa_supplicant *wpa_s = ctx;
 
 	ptksa_cache_add(wpa_s->ptksa, wpa_s->own_addr, addr, cipher, life_time,
-			ptk, NULL, NULL);
+			ptk, NULL, NULL, 0);
 }
 
 #endif /* CONFIG_NO_WPA */
@@ -1427,6 +1427,16 @@ static int wpa_supplicant_set_ltf_keyseed(void *_wpa_s, const u8 *own_addr,
 					      ltf_keyseed, 0);
 }
 #endif /* CONFIG_PASN */
+
+
+static void
+wpa_supplicant_notify_pmksa_cache_entry(void *_wpa_s,
+					struct rsn_pmksa_cache_entry *entry)
+{
+	struct wpa_supplicant *wpa_s = _wpa_s;
+
+	wpas_notify_pmk_cache_added(wpa_s, entry);
+}
 
 
 int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
@@ -1494,6 +1504,7 @@ int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 #ifdef CONFIG_PASN
 	ctx->set_ltf_keyseed = wpa_supplicant_set_ltf_keyseed;
 #endif /* CONFIG_PASN */
+	ctx->notify_pmksa_cache_entry = wpa_supplicant_notify_pmksa_cache_entry;
 
 	wpa_s->wpa = wpa_sm_init(ctx);
 	if (wpa_s->wpa == NULL) {

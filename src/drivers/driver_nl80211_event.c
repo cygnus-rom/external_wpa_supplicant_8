@@ -611,18 +611,18 @@ static void nl80211_get_basic_mle_links_info(const u8 *mle, size_t mle_len,
 		if (pos[0] == MULTI_LINK_SUB_ELEM_ID_PER_STA_PROFILE) {
 			u8 link_id;
 			const u8 *sta_profile;
+			u16 sta_ctrl;
 
 			if (pos[1] < BASIC_MLE_STA_PROF_STA_MAC_IDX + ETH_ALEN)
 				goto next_subelem;
 
 			sta_profile = &pos[2];
-			link_id = sta_profile[0] &
-				BASIC_MLE_STA_CTRL0_LINK_ID_MASK;
+			sta_ctrl = WPA_GET_LE16(sta_profile);
+			link_id = sta_ctrl & BASIC_MLE_STA_CTRL_LINK_ID_MASK;
 			if (link_id >= MAX_NUM_MLD_LINKS)
 				goto next_subelem;
 
-			if (!(sta_profile[0] &
-			      BASIC_MLE_STA_CTRL0_PRES_STA_MAC))
+			if (!(sta_ctrl & BASIC_MLE_STA_CTRL_PRES_STA_MAC))
 				goto next_subelem;
 
 			info->non_assoc_links |= BIT(link_id);
@@ -715,7 +715,13 @@ static int nl80211_update_rejected_links_info(struct driver_sta_mlo_info *mlo,
 
 static int nl80211_get_assoc_link_id(const u8 *data, u8 len)
 {
-	if (!(data[0] & BASIC_MULTI_LINK_CTRL0_PRES_LINK_ID))
+	u16 control;
+
+	if (len < 2)
+		return -1;
+
+	control = WPA_GET_LE16(data);
+	if (!(control & BASIC_MULTI_LINK_CTRL_PRES_LINK_ID))
 		return -1;
 
 #define BASIC_ML_IE_COMMON_INFO_LINK_ID_IDX \
@@ -2893,7 +2899,7 @@ static void nl80211_vendor_event_qca(struct wpa_driver_nl80211_data *drv,
 }
 
 
-#ifdef CONFIG_DRIVER_NL80211_BRCM
+#if defined(CONFIG_DRIVER_NL80211_BRCM) || defined(CONFIG_DRIVER_NL80211_SYNA)
 
 static void brcm_nl80211_acs_select_ch(struct wpa_driver_nl80211_data *drv,
 				       const u8 *data, size_t len)
@@ -2971,7 +2977,7 @@ static void nl80211_vendor_event_brcm(struct wpa_driver_nl80211_data *drv,
 	}
 }
 
-#endif /* CONFIG_DRIVER_NL80211_BRCM */
+#endif /* CONFIG_DRIVER_NL80211_BRCM || CONFIG_DRIVER_NL80211_SYNA */
 
 
 static void nl80211_vendor_event(struct wpa_driver_nl80211_data *drv,
@@ -3024,11 +3030,11 @@ static void nl80211_vendor_event(struct wpa_driver_nl80211_data *drv,
 	case OUI_QCA:
 		nl80211_vendor_event_qca(drv, subcmd, data, len);
 		break;
-#ifdef CONFIG_DRIVER_NL80211_BRCM
+#if defined(CONFIG_DRIVER_NL80211_BRCM) || defined(CONFIG_DRIVER_NL80211_SYNA)
 	case OUI_BRCM:
 		nl80211_vendor_event_brcm(drv, subcmd, data, len);
 		break;
-#endif /* CONFIG_DRIVER_NL80211_BRCM */
+#endif /* CONFIG_DRIVER_NL80211_BRCM || CONFIG_DRIVER_NL80211_SYNA */
 	default:
 		wpa_printf(MSG_DEBUG, "nl80211: Ignore unsupported vendor event");
 		break;

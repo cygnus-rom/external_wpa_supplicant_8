@@ -334,7 +334,8 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 	*pos++ = WLAN_EID_FAST_BSS_TRANSITION;
 	ftie_len = pos++;
 	rsnxe_used = wpa_key_mgmt_sae(sm->key_mgmt) && anonce &&
-		(sm->sae_pwe == 1 || sm->sae_pwe == 2);
+		(sm->sae_pwe == SAE_PWE_HASH_TO_ELEMENT ||
+		 sm->sae_pwe == SAE_PWE_BOTH);
 #ifdef CONFIG_TESTING_OPTIONS
 	if (anonce && sm->ft_rsnxe_used) {
 		rsnxe_used = sm->ft_rsnxe_used == 1;
@@ -770,7 +771,7 @@ int wpa_ft_is_completed(struct wpa_sm *sm)
 	return sm->ft_completed;
 }
 
-#ifdef CONFIG_DRIVER_NL80211_BRCM
+#if defined(CONFIG_DRIVER_NL80211_BRCM) || defined(CONFIG_DRIVER_NL80211_SYNA)
 int wpa_ft_is_ft_protocol(struct wpa_sm *sm)
 {
 	if (sm == NULL)
@@ -781,7 +782,7 @@ int wpa_ft_is_ft_protocol(struct wpa_sm *sm)
 
 	return sm->ft_protocol;
 }
-#endif /* CONFIG_DRIVER_NL80211_BRCM */
+#endif /* CONFIG_DRIVER_NL80211_BRCM || CONFIG_DRIVER_NL80211_SYNA */
 
 void wpa_reset_ft_completed(struct wpa_sm *sm)
 {
@@ -1215,7 +1216,8 @@ int wpa_ft_validate_reassoc_resp(struct wpa_sm *sm, const u8 *ies,
 	}
 
 	own_rsnxe_used = wpa_key_mgmt_sae(sm->key_mgmt) &&
-		(sm->sae_pwe == 1 || sm->sae_pwe == 2);
+		(sm->sae_pwe == SAE_PWE_HASH_TO_ELEMENT ||
+		 sm->sae_pwe == SAE_PWE_BOTH);
 	if ((sm->ap_rsnxe && !parse.rsnxe && own_rsnxe_used) ||
 	    (!sm->ap_rsnxe && parse.rsnxe) ||
 	    (sm->ap_rsnxe && parse.rsnxe &&

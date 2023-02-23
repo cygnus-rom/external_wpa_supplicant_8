@@ -2088,7 +2088,7 @@ static void wpas_start_wps_go(struct wpa_supplicant *wpa_s,
 		ssid->auth_alg |= WPA_AUTH_ALG_SAE;
 		ssid->key_mgmt = WPA_KEY_MGMT_SAE;
 		ssid->ieee80211w = MGMT_FRAME_PROTECTION_REQUIRED;
-		ssid->sae_pwe = 1;
+		ssid->sae_pwe = SAE_PWE_HASH_TO_ELEMENT;
 		wpa_dbg(wpa_s, MSG_DEBUG, "P2P: Use SAE auth_alg and key_mgmt");
 	} else {
 		p2p_set_6ghz_dev_capab(wpa_s->global->p2p, false);
@@ -9746,9 +9746,12 @@ static int wpas_p2p_move_go_csa(struct wpa_supplicant *wpa_s)
 		goto out;
 	}
 
-	if (conf->hw_mode != wpa_s->ap_iface->current_mode->mode) {
-		wpa_dbg(wpa_s, MSG_DEBUG,
-			"P2P CSA: CSA to a different band is not supported");
+	if (conf->hw_mode != wpa_s->ap_iface->current_mode->mode &&
+	    (wpa_s->ap_iface->current_mode->mode != HOSTAPD_MODE_IEEE80211A ||
+	     conf->hw_mode != HOSTAPD_MODE_IEEE80211G)) {
+		wpa_dbg(wpa_s, MSG_INFO,
+			"P2P CSA: CSA from Hardware mode %d to %d is not supported",
+			wpa_s->ap_iface->current_mode->mode, conf->hw_mode);
 		ret = -1;
 		goto out;
 	}
